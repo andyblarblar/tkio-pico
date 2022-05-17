@@ -1,7 +1,8 @@
 #![no_std]
 #![no_main]
 
-use core::cell::RefCell;
+mod traxxas_control;
+
 use cortex_m_rt::entry;
 use embedded_hal::digital::v2::OutputPin;
 use embedded_time::fixed_point::FixedPoint;
@@ -11,25 +12,13 @@ use pimoroni_pico_lipo_16mb as bsp;
 use pimoroni_pico_lipo_16mb::hal;
 use pimoroni_pico_lipo_16mb::pac;
 
-use pac::interrupt;
-
+use crate::hal::pwm::Slices;
+use crate::traxxas_control::XL5;
 use bsp::hal::{
     clocks::{init_clocks_and_plls, Clock},
     sio::Sio,
     watchdog::Watchdog,
 };
-use cortex_m::interrupt::Mutex;
-
-use usb_device::bus::UsbBusAllocator;
-use usb_device::device::{UsbDevice, UsbDeviceBuilder, UsbVidPid};
-use usbd_serial::SerialPort;
-
-// USB devices shared between interrupts and the main proc
-static USB_DEVICE: Mutex<RefCell<Option<UsbDevice<hal::usb::UsbBus>>>> =
-    Mutex::new(RefCell::new(None));
-static mut USB_BUS: Option<UsbBusAllocator<hal::usb::UsbBus>> = None;
-static USB_SERIAL: Mutex<RefCell<Option<SerialPort<hal::usb::UsbBus>>>> =
-    Mutex::new(RefCell::new(None));
 
 #[entry]
 fn main() -> ! {
@@ -63,76 +52,38 @@ fn main() -> ! {
 
     let mut led_pin = pins.led.into_push_pull_output();
 
-    // Set up the USB driver
-    let usb_bus = UsbBusAllocator::new(hal::usb::UsbBus::new(
-        pac.USBCTRL_REGS,
-        pac.USBCTRL_DPRAM,
-        clocks.usb_clock,
-        true,
-        &mut pac.RESETS,
-    ));
+    // Setup PWM
+    let pwm_slices = Slices::new(pac.PWM, &mut pac.RESETS);
+    let mut pwm = pwm_slices.pwm4;
+    pwm.output_to(pins.gpio8);
+    pwm.set_div_int(255u8); //Divide clock to lowest
+    pwm.set_top(((125_000_000 / 255) / (50 - 1)) as u16); //Calculate 50hz period
 
-    //Initialise the values we share with the int
-    cortex_m::interrupt::free(|cs| {
-        // Safety: all reads to usb bus are safe as interrupts are not enabled yet.
-        unsafe {
-            USB_BUS.replace(usb_bus);
-        }
+    let mut xl5 = XL5::new(&mut pwm.channel_a);
 
-        // Set up the USB Communications Class Device driver
-        let serial = SerialPort::new(unsafe { USB_BUS.as_ref().unwrap_unchecked() });
-
-        // Create a USB device with a fake VID and PID
-        let usb_dev = UsbDeviceBuilder::new(
-            unsafe { USB_BUS.as_ref().unwrap_unchecked() },
-            UsbVidPid(0x16c0, 0x27dd),
-        )
-        .manufacturer("Intelligent Systems Club")
-        .product("TinyKart IO Controller")
-        .serial_number("42069")
-        .device_class(2) // from: https://www.usb.org/defined-class-codes
-        .build();
-
-        //Initialise the values we share with the int
-        USB_SERIAL.borrow(cs).replace(Some(serial));
-        USB_DEVICE.borrow(cs).replace(Some(usb_dev));
-    });
-
-    // Enable the USB interrupt
-    unsafe {
-        pac::NVIC::unmask(pac::Interrupt::USBCTRL_IRQ);
-    };
+    xl5.arm_esc();
+    delay.delay_ms(1000);
 
     loop {
-        cortex_m::interrupt::free(|cs| {
-            let mut serial = USB_SERIAL.borrow(cs).borrow_mut();
-            serial.as_mut().unwrap().write(b"High!").unwrap();
-        });
+        xl5.set_neutral();
+        delay.delay_ms(3000);
+
         led_pin.set_high().unwrap();
-        delay.delay_ms(500);
+        xl5.set_forward(0.1);
+        delay.delay_ms(3000);
 
-        cortex_m::interrupt::free(|cs| {
-            let mut serial = USB_SERIAL.borrow(cs).borrow_mut();
-            serial.as_mut().unwrap().write(b"Low!").unwrap();
-        });
+        xl5.set_forward(0.3);
+        delay.delay_ms(3000);
+
         led_pin.set_low().unwrap();
-        delay.delay_ms(500);
+        xl5.set_neutral();
+        delay.delay_ms(3000);
+
+        led_pin.set_high().unwrap();
+        xl5.set_reverse(0.1);
+        delay.delay_ms(3000);
+
+        xl5.set_reverse(0.3);
+        delay.delay_ms(3000);
     }
-}
-
-/// This function is called whenever the USB Hardware generates an Interrupt
-/// Request.
-#[allow(non_snake_case)]
-#[interrupt]
-unsafe fn USBCTRL_IRQ() {
-    cortex_m::interrupt::free(|cs| {
-        // Handle USB request
-        let mut usb_dev = USB_DEVICE.borrow(cs).borrow_mut();
-        let mut usb_serial = USB_SERIAL.borrow(cs).borrow_mut();
-
-        usb_dev
-            .as_mut()
-            .unwrap_unchecked()
-            .poll(&mut [usb_serial.as_mut().unwrap_unchecked()]);
-    });
 }
