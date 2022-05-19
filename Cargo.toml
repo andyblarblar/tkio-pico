@@ -11,9 +11,10 @@ cortex-m-rt = "0.7.1"
 embedded-hal = { version = "0.2", features = ["unproven"] }
 embedded-time = "0.12.1"
 
-usb-device= "0.2.8"
-usbd-serial = "0.1.1"
-usbd-hid = "0.5.2"
+# If using usb
+#usb-device= "0.2.8"
+#usbd-serial = "0.1.1"
+#usbd-hid = "0.5.2"
 
 panic-probe = { version = "0.3.0" }
 

@@ -19,6 +19,7 @@ use bsp::hal::{
     sio::Sio,
     watchdog::Watchdog,
 };
+use embedded_time::rate::Extensions;
 
 #[entry]
 fn main() -> ! {
@@ -53,18 +54,21 @@ fn main() -> ! {
     let mut led_pin = pins.led.into_push_pull_output();
 
     // Setup PWM
-    let pwm_slices = Slices::new(pac.PWM, &mut pac.RESETS);
-    let mut pwm = pwm_slices.pwm4;
+    let mut pwm_slices = Slices::new(pac.PWM, &mut pac.RESETS);
+    let pwm = &mut pwm_slices.pwm4;
+    pwm.enable();
+
     pwm.output_to(pins.gpio8);
     pwm.set_div_int(255u8); //Divide clock to lowest
     pwm.set_top(((125_000_000 / 255) / (50 - 1)) as u16); //Calculate 50hz period
 
-    let mut xl5 = XL5::new(&mut pwm.channel_a);
+    let mut xl5 = XL5::new(&mut pwm.channel_a, 50.Hz());
 
     xl5.arm_esc();
-    delay.delay_ms(1000);
+    delay.delay_ms(4000);
 
     loop {
+        led_pin.set_low().unwrap();
         xl5.set_neutral();
         delay.delay_ms(3000);
 
