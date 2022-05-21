@@ -3,7 +3,7 @@
 
 mod traxxas_control;
 
-use asm_delay::AsmDelay;
+use asm_delay_embedded_time::AsmDelay;
 use cortex_m_rt::entry;
 use embedded_hal::digital::v2::OutputPin;
 use embedded_time::fixed_point::FixedPoint;
@@ -63,8 +63,8 @@ fn main() -> ! {
     pwm.set_div_int(255u8); //Divide clock to lowest
     pwm.set_top(((125_000_000 / 255) / (50 - 1)) as u16); //Calculate 50hz period
 
-    let xl5_delay_ = AsmDelay::new(); //TODO finish after setting up fork that uses embedded time
-    let mut xl5 = XL5::new(&mut pwm.channel_a, 50.Hz());
+    let mut xl5_delay_ = AsmDelay::new(clocks.system_clock.freq().integer().Hz());
+    let mut xl5 = XL5::new(&mut pwm.channel_a, 50.Hz(), &mut xl5_delay_);
 
     xl5.arm_esc();
 
