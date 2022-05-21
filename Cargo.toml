@@ -10,6 +10,7 @@ cortex-m = "0.7.4"
 cortex-m-rt = "0.7.1"
 embedded-hal = { version = "0.2", features = ["unproven"] }
 embedded-time = "0.12.1"
+asm-delay = "0.9.0"
 
 # If using usb
 #usb-device= "0.2.8"

@@ -3,6 +3,7 @@
 
 mod traxxas_control;
 
+use asm_delay::AsmDelay;
 use cortex_m_rt::entry;
 use embedded_hal::digital::v2::OutputPin;
 use embedded_time::fixed_point::FixedPoint;
@@ -62,40 +63,19 @@ fn main() -> ! {
     pwm.set_div_int(255u8); //Divide clock to lowest
     pwm.set_top(((125_000_000 / 255) / (50 - 1)) as u16); //Calculate 50hz period
 
+    let xl5_delay_ = AsmDelay::new(); //TODO finish after setting up fork that uses embedded time
     let mut xl5 = XL5::new(&mut pwm.channel_a, 50.Hz());
 
-    //Arm ESC TODO encasulate this
-    xl5.set_reverse(1.0);
-    delay.delay_ms(40);
-
-    xl5.set_forward(1.0);
-    delay.delay_ms(40);
-
-    xl5.set_neutral();
-    delay.delay_ms(500);
+    xl5.arm_esc();
 
     loop {
         led_pin.set_high().unwrap();
         xl5.set_forward(0.15);
         delay.delay_ms(3000);
 
-        // This is all to reverse TODO make a method
         led_pin.set_high().unwrap();
-        xl5.set_reverse(0.1);
-        delay.delay_ms(20);
-
-        xl5.set_neutral();
-        delay.delay_ms(60);
-
-        xl5.set_reverse(0.15);
+        xl5.set_reverse(0.2);
         delay.delay_ms(3000);
     }
 }
 
-// Notes:
-// Each cycle is 20ms for 50hz
-//
-// Arm with forward-back-neutral OR back-forward-neu, where the neu must be at least 500ms and for/rev are 2 cycles
-// forward works at any time
-// reverse is rev-neu-rev, with 1 cycle for the first rev and 3 for neu
-// brake is any-rev?
