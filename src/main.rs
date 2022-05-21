@@ -39,8 +39,8 @@ fn main() -> ! {
         &mut pac.RESETS,
         &mut watchdog,
     )
-    .ok()
-    .unwrap();
+        .ok()
+        .unwrap();
 
     let mut delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().integer());
 
@@ -56,7 +56,7 @@ fn main() -> ! {
     // Setup PWM
     let mut pwm_slices = Slices::new(pac.PWM, &mut pac.RESETS);
     let pwm = &mut pwm_slices.pwm4;
-    pwm.enable();
+    pwm.enable(); //must enable before configuring
 
     pwm.output_to(pins.gpio8);
     pwm.set_div_int(255u8); //Divide clock to lowest
@@ -64,30 +64,38 @@ fn main() -> ! {
 
     let mut xl5 = XL5::new(&mut pwm.channel_a, 50.Hz());
 
-    xl5.arm_esc();
-    delay.delay_ms(4000);
+    //Arm ESC TODO encasulate this
+    xl5.set_reverse(1.0);
+    delay.delay_ms(40);
+
+    xl5.set_forward(1.0);
+    delay.delay_ms(40);
+
+    xl5.set_neutral();
+    delay.delay_ms(500);
 
     loop {
-        led_pin.set_low().unwrap();
-        xl5.set_neutral();
-        delay.delay_ms(3000);
-
         led_pin.set_high().unwrap();
-        xl5.set_forward(0.1);
+        xl5.set_forward(0.15);
         delay.delay_ms(3000);
 
-        xl5.set_forward(0.3);
-        delay.delay_ms(3000);
-
-        led_pin.set_low().unwrap();
-        xl5.set_neutral();
-        delay.delay_ms(3000);
-
+        // This is all to reverse TODO make a method
         led_pin.set_high().unwrap();
         xl5.set_reverse(0.1);
-        delay.delay_ms(3000);
+        delay.delay_ms(20);
 
-        xl5.set_reverse(0.3);
+        xl5.set_neutral();
+        delay.delay_ms(60);
+
+        xl5.set_reverse(0.15);
         delay.delay_ms(3000);
     }
 }
+
+// Notes:
+// Each cycle is 20ms for 50hz
+//
+// Arm with forward-back-neutral OR back-forward-neu, where the neu must be at least 500ms and for/rev are 2 cycles
+// forward works at any time
+// reverse is rev-neu-rev, with 1 cycle for the first rev and 3 for neu
+// brake is any-rev?
