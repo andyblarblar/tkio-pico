@@ -63,7 +63,7 @@ fn main() -> ! {
     pwm.set_div_int(255u8); //Divide clock to lowest
     pwm.set_top(((125_000_000 / 255) / (50 - 1)) as u16); //Calculate 50hz period
 
-    let mut xl5_delay_ = AsmDelay::new(clocks.system_clock.freq().integer().Hz());
+    let mut xl5_delay_ = AsmDelay::new(clocks.system_clock.freq());
     let mut xl5 = XL5::new(&mut pwm.channel_a, 50.Hz(), &mut xl5_delay_);
 
     xl5.arm_esc();
@@ -71,11 +71,19 @@ fn main() -> ! {
     loop {
         led_pin.set_high().unwrap();
         xl5.set_forward(0.15);
-        delay.delay_ms(3000);
+        delay.delay_ms(3000u32);
+
+        led_pin.set_low().unwrap();
+        xl5.set_neutral();
+        delay.delay_ms(1000u32);
 
         led_pin.set_high().unwrap();
-        xl5.set_reverse(0.2);
-        delay.delay_ms(3000);
+        xl5.set_reverse(0.15);
+        delay.delay_ms(3000u32);
+
+        led_pin.set_low().unwrap();
+        xl5.set_neutral();
+        delay.delay_ms(1000u32);
     }
 }
 
