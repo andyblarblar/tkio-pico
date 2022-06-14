@@ -1,6 +1,6 @@
 //! Commands sent to control the Pico.
 //!
-//! Each command is detailed below, and is deliminated from the prior by newline.
+//! Each command is detailed below, and is deliminated from the prior by a !.
 
 use ascii::AsciiStr;
 
@@ -11,31 +11,31 @@ pub enum Command {
     ///
     /// Sent in form:
     ///
-    /// 'F XXX' where XXX is any number between 0 and 100.
+    /// 'F XXX!' where XXX is any number between 0 and 100.
     EscForward(u8),
     /// Reverse at percent power
     ///
     /// Sent in form:
     ///
-    /// 'R XXX' where XXX is any number between 0 and 100.
+    /// 'R XXX!' where XXX is any number between 0 and 100.
     EscRev(u8),
     /// Stop motion
     ///
     /// Sent in form:
     ///
-    /// 'N'
+    /// 'N!'
     EscNeutral,
     /// Kill controller
     ///
     /// Sent in form:
     ///
-    /// 'D'
+    /// 'D!'
     Die,
     /// Move servo to angle
     ///
     /// Sent in form:
     ///
-    /// 'S XXX' where XXX is the angle to move to.
+    /// 'S XXX!' where XXX is the angle to move to.
     Servo(u16),
 }
 

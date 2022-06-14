@@ -27,8 +27,8 @@ use bsp::hal::{
     sio::Sio,
     watchdog::Watchdog,
 };
-use cortex_m::asm::{sev, wfe, wfi};
-use embedded_hal::prelude::{_embedded_hal_blocking_delay_DelayMs, _embedded_hal_serial_Read};
+use cortex_m::asm::{sev, wfe};
+use embedded_hal::prelude::_embedded_hal_serial_Read;
 use embedded_time::rate::Extensions;
 use pac::interrupt;
 
@@ -82,7 +82,7 @@ fn main() -> ! {
         )
         .unwrap();
 
-    // Uart rx is only accessed from int, tx is unused for now
+    // Uart rx is only accessed from int, tx is just used for debugging
     let (mut urt_rx, urt_tx) = uart.split();
     urt_rx.enable_rx_interrupt();
     unsafe {
@@ -106,16 +106,10 @@ fn main() -> ! {
 
     xl5.arm_esc();
 
+    led_pin.set_high().unwrap();
+
     unsafe {
         pac::NVIC::unmask(hal::pac::Interrupt::UART0_IRQ);
-    }
-
-    loop {
-        urt_tx.write_full_blocking(b"Sleeping...");
-        led_pin.set_high().unwrap();
-        delay.delay_ms(1000u32);
-        led_pin.set_low().unwrap();
-        delay.delay_ms(1000u32);
     }
 
     // Event loop
@@ -124,16 +118,22 @@ fn main() -> ! {
             // Dispatch command in a cs to avoid PPM timing from being messed up.
             cortex_m::interrupt::free(|_| match event {
                 Command::EscForward(perc) => {
+                    led_pin.set_low().unwrap();
                     xl5.set_forward(perc as f32 / 100.0);
-                    urt_tx.write_full_blocking(b"Set forward")
+                    urt_tx.write_full_blocking(b"Set forward\n");
+                    led_pin.set_high().unwrap();
                 }
                 Command::EscRev(perc) => {
+                    led_pin.set_low().unwrap();
                     xl5.set_reverse(perc as f32 / 100.0);
-                    urt_tx.write_full_blocking(b"Set reverse")
+                    urt_tx.write_full_blocking(b"Set reverse\n");
+                    led_pin.set_high().unwrap();
                 }
                 Command::EscNeutral => {
+                    led_pin.set_low().unwrap();
                     xl5.set_neutral();
-                    urt_tx.write_full_blocking(b"Set neutral")
+                    urt_tx.write_full_blocking(b"Set neutral\n");
+                    led_pin.set_high().unwrap();
                 }
                 Command::Die => {
                     led_pin.set_low().unwrap();
@@ -146,7 +146,7 @@ fn main() -> ! {
             })
         } else {
             // Sleep between calls to avoid burning power
-            urt_tx.write_full_blocking(b"Sleeping...");
+            urt_tx.write_full_blocking(b"Sleeping...\n");
             wfe();
         }
     }
@@ -166,13 +166,16 @@ fn UART0_IRQ() {
     let rx = RX.as_mut().unwrap();
 
     while let Ok(byte) = rx.read() {
-        // Read until newline
-        if byte == b'\n' {
+        // Read until !
+        if byte == b'!' {
             let command = Command::from(QUEUE.as_slice());
             EVENT_QUEUE.enqueue(command).unwrap();
+
+            QUEUE.clear();
+
             // Trigger arm event to wake main
             sev();
-            return
+            return;
         } else {
             QUEUE.push(byte).unwrap();
         }
