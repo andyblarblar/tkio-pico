@@ -11,6 +11,8 @@ cortex-m-rt = "0.7.1"
 embedded-hal = { version = "0.2", features = ["unproven"] }
 embedded-time = "0.12.1"
 asm-delay-embedded-time = "0.9.1"
+heapless = "0.7.13"
+ascii = { version = "1.0", default-features = false }
 
 # If using usb
 #usb-device= "0.2.8"
