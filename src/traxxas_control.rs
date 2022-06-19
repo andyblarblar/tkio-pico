@@ -5,6 +5,8 @@ use embedded_hal::PwmPin;
 use embedded_time::duration::*;
 use embedded_time::rate::{Hertz, Rate};
 
+//TODO make traits for these
+
 // Notes:
 // Each cycle is 20ms for 50hz
 //
@@ -98,5 +100,25 @@ impl<'a> XL5<'a> {
         self.delay.delay_ms(self.period.0 * 4);
 
         self.set_raw_reverse(percent_power);
+    }
+}
+
+/// Allows for control over a Traxxas 2075 servo (stock on the brushed slash).
+pub struct Traxxas2075<'a> {
+    chan: &'a mut dyn PwmPin<Duty=u16>,
+    max_duty: u16,
+}
+
+impl<'a> Traxxas2075<'a> {
+    /// Creates a new servo abstraction. Pwm pin should be running at 50hz.
+    pub fn new(pwm: &'a mut dyn PwmPin<Duty=u16>) -> Self {
+        Self {
+            max_duty: pwm.get_max_duty(),
+            chan: pwm,
+        }
+    }
+
+    pub fn set_angle(angle: u8) {
+        //let duty = (1.5 + (percent_power * 0.5)) / self.period.0 as f32 * self.max_duty as f32;
     }
 }

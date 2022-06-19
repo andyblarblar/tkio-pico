@@ -36,7 +36,9 @@ pub enum Command {
     /// Sent in form:
     ///
     /// 'S XXX!' where XXX is the angle to move to.
-    Servo(u16),
+    Servo(u8),
+    /// Does nothing.
+    Nop
 }
 
 impl From<&[u8]> for Command {
@@ -44,10 +46,6 @@ impl From<&[u8]> for Command {
         fn u8_from_ascii(data: &[u8], start: usize, end: usize) -> u8 {
             let asci = AsciiStr::from_ascii(&data[start..end]).unwrap();
             asci.as_str().trim().parse::<u8>().unwrap()
-        }
-        fn u16_from_ascii(data: &[u8], start: usize, end: usize) -> u16 {
-            let asci = AsciiStr::from_ascii(&data[start..end]).unwrap();
-            asci.as_str().trim().parse::<u16>().unwrap()
         }
 
         match other[0] {
@@ -75,10 +73,10 @@ impl From<&[u8]> for Command {
             b'D' => Command::Die,
             // Servo move
             b'S' => {
-                let angle = u16_from_ascii(other, 2, other.len());
+                let angle = u8_from_ascii(other, 2, other.len());
                 Command::Servo(angle)
             }
-            _ => Command::Die,
+            _ => Command::Nop,
         }
     }
 }

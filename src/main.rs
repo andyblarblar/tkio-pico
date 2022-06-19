@@ -57,8 +57,8 @@ fn main() -> ! {
         &mut pac.RESETS,
         &mut watchdog,
     )
-    .ok()
-    .unwrap();
+        .ok()
+        .unwrap();
 
     let mut delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().integer());
 
@@ -99,10 +99,10 @@ fn main() -> ! {
 
     pwm.output_to(pins.gpio8);
     pwm.set_div_int(255u8); //Divide clock to lowest
-    pwm.set_top(((125_000_000 / 255) / (50 - 1)) as u16); //Calculate 50hz period
+    pwm.set_top(((125_000_000 / 255) / (50 - 1)) as u16); //Calculate 50hz period TODO make 100hz
 
-    let mut del = asm_delay_embedded_time::AsmDelay::new(clocks.system_clock.freq());
-    let mut xl5 = XL5::new(&mut pwm.channel_a, 50.Hz(), &mut del);
+    //let mut del = asm_delay_embedded_time::AsmDelay::new(clocks.system_clock.freq());
+    let mut xl5 = XL5::new(&mut pwm.channel_a, 50.Hz(), &mut delay);
 
     xl5.arm_esc();
 
@@ -140,7 +140,8 @@ fn main() -> ! {
                     urt_tx.write_full_blocking(b"DIE >:]");
                     panic!("Killed by request")
                 }
-                Command::Servo(_) => {
+                Command::Nop => {}
+                Command::Servo(angle) => {
                     todo!()
                 }
             })
