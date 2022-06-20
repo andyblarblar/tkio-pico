@@ -4,6 +4,7 @@
 mod commands;
 mod traxxas_control;
 
+use ascii::AsciiChar::l;
 use cortex_m_rt::entry;
 use embedded_hal::digital::v2::OutputPin;
 use embedded_time::fixed_point::FixedPoint;
@@ -20,7 +21,7 @@ use crate::hal::pwm::Slices;
 use crate::hal::uart;
 use crate::hal::uart::UartPeripheral;
 use crate::pac::UART0;
-use crate::traxxas_control::XL5;
+use crate::traxxas_control::{Traxxas2075, XL5};
 use crate::uart::Reader;
 use bsp::hal::{
     clocks::{init_clocks_and_plls, Clock},
@@ -41,6 +42,7 @@ static EVENT_QUEUE: heapless::mpmc::Q8<Command> = heapless::mpmc::Q8::new();
 
 #[entry]
 fn main() -> ! {
+    //Boilerplate
     let mut pac = pac::Peripherals::take().unwrap();
     let core = pac::CorePeripherals::take().unwrap();
     let mut watchdog = Watchdog::new(pac.WATCHDOG);
@@ -57,8 +59,8 @@ fn main() -> ! {
         &mut pac.RESETS,
         &mut watchdog,
     )
-        .ok()
-        .unwrap();
+    .ok()
+    .unwrap();
 
     let mut delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().integer());
 
@@ -94,15 +96,32 @@ fn main() -> ! {
 
     // Setup PWM
     let mut pwm_slices = Slices::new(pac.PWM, &mut pac.RESETS);
-    let pwm = &mut pwm_slices.pwm4;
-    pwm.enable(); //must enable before configuring
+    const CLK_DIV_VAL: u8 = 255u8;
 
-    pwm.output_to(pins.gpio8);
-    pwm.set_div_int(255u8); //Divide clock to lowest
-    pwm.set_top(((125_000_000 / 255) / (50 - 1)) as u16); //Calculate 50hz period TODO make 100hz
+    let xl5_pwm = &mut pwm_slices.pwm4;
+    xl5_pwm.enable(); //must enable before configuring
 
-    //let mut del = asm_delay_embedded_time::AsmDelay::new(clocks.system_clock.freq());
-    let mut xl5 = XL5::new(&mut pwm.channel_a, 50.Hz(), &mut delay);
+    xl5_pwm.output_to(pins.gpio8);
+    xl5_pwm.set_div_int(CLK_DIV_VAL); //Divide clock to lowest
+    xl5_pwm.set_top(calc_pwm_freq(
+        clocks.system_clock.freq().integer(),
+        CLK_DIV_VAL,
+        100,
+    ));
+
+    let servo_pwm = &mut pwm_slices.pwm5;
+    servo_pwm.enable();
+
+    servo_pwm.output_to(pins.gpio10);
+    servo_pwm.set_div_int(CLK_DIV_VAL);
+    servo_pwm.set_top(calc_pwm_freq(
+        clocks.system_clock.freq().integer(),
+        CLK_DIV_VAL,
+        50,
+    ));
+
+    let mut xl5 = XL5::new(&mut xl5_pwm.channel_a, 100.Hz(), &mut delay);
+    let mut servo = Traxxas2075::new(&mut servo_pwm.channel_a);
 
     xl5.arm_esc();
 
@@ -142,7 +161,10 @@ fn main() -> ! {
                 }
                 Command::Nop => {}
                 Command::Servo(angle) => {
-                    todo!()
+                    led_pin.set_low().unwrap();
+                    servo.set_angle(angle);
+                    urt_tx.write_full_blocking(b"Set servo angle");
+                    led_pin.set_high().unwrap();
                 }
             })
         } else {
@@ -181,4 +203,11 @@ fn UART0_IRQ() {
             QUEUE.push(byte).unwrap();
         }
     }
+}
+
+/// Calculates the pwm wrap level for some target frequency (in Hz), given processor base clock frequency (in Hz)
+/// and the clock divider value.
+const fn calc_pwm_freq(clock_freq: u32, divider: u8, target_freq: u32) -> u16 {
+    let wrap_value = (clock_freq / divider as u32) / (target_freq - 1);
+    wrap_value as u16
 }

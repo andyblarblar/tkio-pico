@@ -55,6 +55,8 @@ impl<'a> XL5<'a> {
     }
 
     /// Arms the ESC.
+    ///
+    /// The PWM pin is set to a neutral value after this function exits.
     pub fn arm_esc(&mut self) {
         self.set_raw_reverse(1.0);
         self.delay.delay_ms(self.period.0 * 3);
@@ -118,7 +120,7 @@ impl<'a> Traxxas2075<'a> {
         }
     }
 
-    pub fn set_angle(angle: u8) {
+    pub fn set_angle(&mut self ,angle: u8) {
         //let duty = (1.5 + (percent_power * 0.5)) / self.period.0 as f32 * self.max_duty as f32;
     }
 }
