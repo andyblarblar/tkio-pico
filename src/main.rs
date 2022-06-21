@@ -1,15 +1,19 @@
 #![no_std]
 #![no_main]
 
-mod commands;
-mod traxxas_control;
-
-use ascii::AsciiChar::l;
+use bsp::hal::{
+    clocks::{init_clocks_and_plls, Clock},
+    sio::Sio,
+    watchdog::Watchdog,
+};
+use cortex_m::asm::{sev, wfe};
 use cortex_m_rt::entry;
 use embedded_hal::digital::v2::OutputPin;
+use embedded_hal::prelude::_embedded_hal_serial_Read;
 use embedded_time::fixed_point::FixedPoint;
+use embedded_time::rate::Extensions;
+use pac::interrupt;
 use panic_probe as _;
-
 use pimoroni_pico_lipo_16mb as bsp;
 use pimoroni_pico_lipo_16mb::hal;
 use pimoroni_pico_lipo_16mb::pac;
@@ -21,17 +25,12 @@ use crate::hal::pwm::Slices;
 use crate::hal::uart;
 use crate::hal::uart::UartPeripheral;
 use crate::pac::UART0;
-use crate::traxxas_control::{Traxxas2075, XL5};
+use crate::rc_control::traits::{Esc, Servo, TraxxasSlash2wd};
+use crate::rc_control::traxxas_control::{Traxxas2075, XL5};
 use crate::uart::Reader;
-use bsp::hal::{
-    clocks::{init_clocks_and_plls, Clock},
-    sio::Sio,
-    watchdog::Watchdog,
-};
-use cortex_m::asm::{sev, wfe};
-use embedded_hal::prelude::_embedded_hal_serial_Read;
-use embedded_time::rate::Extensions;
-use pac::interrupt;
+
+mod commands;
+mod rc_control;
 
 type UartRx = Option<Reader<UART0, (Pin<Gpio0, FunctionUart>, Pin<Gpio1, FunctionUart>)>>;
 
@@ -121,7 +120,7 @@ fn main() -> ! {
     ));
 
     let mut xl5 = XL5::new(&mut xl5_pwm.channel_a, 100.Hz(), &mut delay);
-    let mut servo = Traxxas2075::new(&mut servo_pwm.channel_a);
+    let mut servo = Traxxas2075::<TraxxasSlash2wd>::new(&mut servo_pwm.channel_a);
 
     xl5.arm_esc();
 

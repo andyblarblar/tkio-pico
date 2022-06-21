@@ -7,7 +7,7 @@ use ascii::AsciiStr;
 /// Commands sent to us from the uart connection.
 #[derive(Debug, Clone, Copy)]
 pub enum Command {
-    /// Drive at percent power.
+    /// Drive at percent power
     ///
     /// Sent in form:
     ///
@@ -31,7 +31,7 @@ pub enum Command {
     ///
     /// 'D!'
     Die,
-    /// Move servo to angle
+    /// Move servo to virtual Ackermann wheel angle
     ///
     /// Sent in form:
     ///

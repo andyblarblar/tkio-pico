@@ -1,11 +1,11 @@
 //! Contains abstractions that allow for control over Traxxas RC car actuators.
 
+use crate::rc_control::traits::{Esc, ExceedShortCourse, RcCar, Servo, TraxxasSlash2wd};
+use core::marker::PhantomData;
 use embedded_hal::blocking::delay::DelayMs;
 use embedded_hal::PwmPin;
 use embedded_time::duration::*;
 use embedded_time::rate::{Hertz, Rate};
-
-//TODO make traits for these
 
 // Notes:
 // Each cycle is 20ms for 50hz
@@ -19,7 +19,7 @@ use embedded_time::rate::{Hertz, Rate};
 
 /// Allows for control over a Traxxas XL5 ESC.
 pub struct XL5<'a> {
-    chan: &'a mut dyn PwmPin<Duty=u16>,
+    chan: &'a mut dyn PwmPin<Duty = u16>,
     max_duty: u16,
     period: Milliseconds,
     delay: &'a mut dyn DelayMs<u32>,
@@ -30,7 +30,7 @@ impl<'a> XL5<'a> {
     /// on the pin connected to the control wire on the ESC connector, running at the passed
     /// frequency.
     pub fn new(
-        pwm: &'a mut dyn PwmPin<Duty=u16>,
+        pwm: &'a mut dyn PwmPin<Duty = u16>,
         freq: impl Into<Hertz>,
         delay: &'a mut dyn DelayMs<u32>,
     ) -> Self {
@@ -47,9 +47,11 @@ impl<'a> XL5<'a> {
             delay,
         }
     }
+}
 
+impl<'a> Esc for XL5<'a> {
     /// Stops the motors.
-    pub fn set_neutral(&mut self) {
+    fn set_neutral(&mut self) {
         self.chan
             .set_duty(((1.5 / self.period.0 as f32) * self.max_duty as f32) as u16)
     }
@@ -57,7 +59,7 @@ impl<'a> XL5<'a> {
     /// Arms the ESC.
     ///
     /// The PWM pin is set to a neutral value after this function exits.
-    pub fn arm_esc(&mut self) {
+    fn arm_esc(&mut self) {
         self.set_raw_reverse(1.0);
         self.delay.delay_ms(self.period.0 * 3);
 
@@ -69,7 +71,7 @@ impl<'a> XL5<'a> {
     }
 
     /// Sets the motors to a percentage of forward power, in a range of \[0,1\].
-    pub fn set_forward(&mut self, percent_power: f32) {
+    fn set_forward(&mut self, percent_power: f32) {
         debug_assert!((0.0..=1.0).contains(&percent_power));
 
         let duty = (1.5 + (percent_power * 0.5)) / self.period.0 as f32 * self.max_duty as f32;
@@ -80,7 +82,7 @@ impl<'a> XL5<'a> {
     /// Sets the motors to a percentage of backwards power, in a range of \[0,1\].
     ///
     /// This function does not clear the brake lockout, so it may not actually cause the motors to reverse.
-    pub fn set_raw_reverse(&mut self, percent_power: f32) {
+    fn set_raw_reverse(&mut self, percent_power: f32) {
         debug_assert!((0.0..=1.0).contains(&percent_power));
 
         let duty = (1.5 - (percent_power * 0.5)) / self.period.0 as f32 * self.max_duty as f32;
@@ -92,7 +94,7 @@ impl<'a> XL5<'a> {
     ///
     /// This function will clear the reverse lockout, so it will always reverse after a delay of
     /// at least 80ms.
-    pub fn set_reverse(&mut self, percent_power: f32) {
+    fn set_reverse(&mut self, percent_power: f32) {
         debug_assert!((0.0..=1.0).contains(&percent_power));
 
         self.set_raw_reverse(0.1);
@@ -105,22 +107,37 @@ impl<'a> XL5<'a> {
     }
 }
 
-/// Allows for control over a Traxxas 2075 servo (stock on the brushed slash).
-pub struct Traxxas2075<'a> {
-    chan: &'a mut dyn PwmPin<Duty=u16>,
+/// Allows for control over a Traxxas 2075 servo (stock on many models).
+pub struct Traxxas2075<'a, C: RcCar> {
+    chan: &'a mut dyn PwmPin<Duty = u16>,
     max_duty: u16,
+    _rc_phantom: PhantomData<&'a C>,
 }
 
-impl<'a> Traxxas2075<'a> {
+impl<'a, C: RcCar> Traxxas2075<'a, C> {
     /// Creates a new servo abstraction. Pwm pin should be running at 50hz.
-    pub fn new(pwm: &'a mut dyn PwmPin<Duty=u16>) -> Self {
+    pub fn new(pwm: &'a mut dyn PwmPin<Duty = u16>) -> Self {
         Self {
             max_duty: pwm.get_max_duty(),
             chan: pwm,
+            _rc_phantom: PhantomData::default(),
         }
     }
+}
 
-    pub fn set_angle(&mut self ,angle: u8) {
+impl<'a> Servo for Traxxas2075<'a, TraxxasSlash2wd> {
+    /// Moves the servo such that the 'virtual' Ackermann wheel is at the passed angle.
+    fn set_angle(&mut self, angle: u8) {
+        //TODO convert ackermann virtual angle to servo value. This should just be the avg of the two wheel angles at some values
+        //We should also find the degrees per us to make the duty calculation much easier. To do this, get the wheel angle at 2ms and divide by .5
+
         //let duty = (1.5 + (percent_power * 0.5)) / self.period.0 as f32 * self.max_duty as f32;
+    }
+}
+
+impl<'a> Servo for Traxxas2075<'a, ExceedShortCourse> {
+    /// Moves the servo such that the 'virtual' Ackermann wheel is at the passed angle.
+    fn set_angle(&mut self, angle: u8) {
+        todo!()
     }
 }
