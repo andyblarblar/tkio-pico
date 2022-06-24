@@ -35,17 +35,24 @@ pub enum Command {
     ///
     /// Sent in form:
     ///
-    /// 'S XXX!' where XXX is the angle to move to.
-    Servo(u8),
+    /// 'S XXX!' where XXX is the angle to move to in degrees. Positive angles are left, negative angles are right.
+    Servo(i16),
     /// Does nothing.
     Nop
 }
 
 impl From<&[u8]> for Command {
     fn from(other: &[u8]) -> Self {
+
+        //These two funs trim whitespace, so we can always start at index 2. This means that the only way to mess up a command
+        //is to add whitespace between the letter and numbers (I think, this may be handled by the str->int conversions).
         fn u8_from_ascii(data: &[u8], start: usize, end: usize) -> u8 {
             let asci = AsciiStr::from_ascii(&data[start..end]).unwrap();
             asci.as_str().trim().parse::<u8>().unwrap()
+        }
+        fn i16_from_ascii(data: &[u8], start: usize, end: usize) -> i16 {
+            let asci = AsciiStr::from_ascii(&data[start..end]).unwrap();
+            asci.as_str().trim().parse::<i16>().unwrap()
         }
 
         match other[0] {
@@ -73,7 +80,7 @@ impl From<&[u8]> for Command {
             b'D' => Command::Die,
             // Servo move
             b'S' => {
-                let angle = u8_from_ascii(other, 2, other.len());
+                let angle = i16_from_ascii(other, 2, other.len());
                 Command::Servo(angle)
             }
             _ => Command::Nop,

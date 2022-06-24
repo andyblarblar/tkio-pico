@@ -127,17 +127,34 @@ impl<'a, C: RcCar> Traxxas2075<'a, C> {
 
 impl<'a> Servo for Traxxas2075<'a, TraxxasSlash2wd> {
     /// Moves the servo such that the 'virtual' Ackermann wheel is at the passed angle.
-    fn set_angle(&mut self, angle: u8) {
-        //TODO convert ackermann virtual angle to servo value. This should just be the avg of the two wheel angles at some values
-        //We should also find the degrees per us to make the duty calculation much easier. To do this, get the wheel angle at 2ms and divide by .5
-
-        //let duty = (1.5 + (percent_power * 0.5)) / self.period.0 as f32 * self.max_duty as f32;
+    ///
+    /// Positive angles are to the left, negative is to the right. All angles are in degrees.
+    fn set_angle(&mut self, angle: i16) {
+        todo!()
     }
 }
 
 impl<'a> Servo for Traxxas2075<'a, ExceedShortCourse> {
     /// Moves the servo such that the 'virtual' Ackermann wheel is at the passed angle.
-    fn set_angle(&mut self, angle: u8) {
-        todo!()
+    ///
+    /// Positive angles are to the left, negative is to the right. All angles are in degrees.
+    fn set_angle(&mut self, angle: i16) {
+        let degrees_per_us = 0.0045f32; //TODO replace
+        let us_per_degree = 1.0 / degrees_per_us;
+
+        if angle == 0 {
+            let duty = 1.5 / 20.0 * self.max_duty as f32;
+            self.chan.set_duty(duty as u16);
+        } else if angle < 0 {
+            //Turn right
+            let ms_to_move = (angle as f32 * -1.0) * (us_per_degree / 1000.0);
+            let duty = (1.5 + ms_to_move) / 20.0 * self.max_duty as f32;
+            self.chan.set_duty(duty as u16)
+        } else {
+            //Turn left
+            let ms_to_move = angle as f32 * (us_per_degree / 1000.0);
+            let duty = (1.0 + ms_to_move) / 20.0 * self.max_duty as f32;
+            self.chan.set_duty(duty as u16)
+        }
     }
 }

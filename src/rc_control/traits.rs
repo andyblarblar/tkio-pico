@@ -15,7 +15,9 @@ impl RcCar for ExceedShortCourse {}
 /// mechanics.
 pub trait Servo {
     /// Moves the servo such that the 'virtual' Ackermann wheel is at the passed angle.
-    fn set_angle(&mut self, angle: u8);
+    ///
+    /// Positive angles are to the left, negative is to the right. All angles are in degrees.
+    fn set_angle(&mut self, angle: i16);
 }
 
 /// An Electronic Speed Controller.
