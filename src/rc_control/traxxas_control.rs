@@ -139,7 +139,7 @@ impl<'a> Servo for Traxxas2075<'a, ExceedShortCourse> {
     ///
     /// Positive angles are to the left, negative is to the right. All angles are in degrees.
     fn set_angle(&mut self, angle: i16) {
-        let degrees_per_us = 0.0045f32; //TODO replace
+        let degrees_per_us = 0.00425f32; //TODO replace
         let us_per_degree = 1.0 / degrees_per_us;
 
         if angle == 0 {
