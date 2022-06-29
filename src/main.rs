@@ -25,7 +25,7 @@ use crate::hal::pwm::Slices;
 use crate::hal::uart;
 use crate::hal::uart::UartPeripheral;
 use crate::pac::UART0;
-use crate::rc_control::traits::{Esc, ExceedShortCourse, Servo, TraxxasSlash2wd};
+use crate::rc_control::traits::{Esc, Servo, TraxxasSlash2wd};
 use crate::rc_control::traxxas_control::{Traxxas2075, XL5};
 use crate::uart::Reader;
 
@@ -120,7 +120,7 @@ fn main() -> ! {
     ));
 
     let mut xl5 = XL5::new(&mut xl5_pwm.channel_a, 100.Hz(), &mut delay);
-    let mut servo = Traxxas2075::<ExceedShortCourse>::new(&mut servo_pwm.channel_a);
+    let mut servo = Traxxas2075::<TraxxasSlash2wd>::new(&mut servo_pwm.channel_a);
 
     xl5.arm_esc();
 

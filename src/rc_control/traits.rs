@@ -6,14 +6,14 @@ pub trait RcCar {}
 pub struct TraxxasSlash2wd;
 impl RcCar for TraxxasSlash2wd {}
 
-pub struct ExceedShortCourse;
-impl RcCar for ExceedShortCourse {}
-
 /// A drive servo.
 ///
 /// This trait is designed to be specialised for each model of Rc Car, to account for differences in
 /// mechanics.
 pub trait Servo {
+    /// The number of degrees the ackermann wheel turns per us of PWM width added.
+    const US_TO_DEGREES: f32;
+
     /// Moves the servo such that the 'virtual' Ackermann wheel is at the passed angle.
     ///
     /// Positive angles are to the left, negative is to the right. All angles are in degrees.
