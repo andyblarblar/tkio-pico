@@ -32,6 +32,9 @@ use crate::uart::Reader;
 mod commands;
 mod rc_control;
 
+#[macro_use]
+mod utils;
+
 type UartRx = Option<Reader<UART0, (Pin<Gpio0, FunctionUart>, Pin<Gpio1, FunctionUart>)>>;
 
 static mut UART_RX: UartRx = None;
@@ -58,8 +61,8 @@ fn main() -> ! {
         &mut pac.RESETS,
         &mut watchdog,
     )
-    .ok()
-    .unwrap();
+        .ok()
+        .unwrap();
 
     let mut delay = cortex_m::delay::Delay::new(core.SYST, clocks.system_clock.freq().integer());
 
@@ -130,9 +133,16 @@ fn main() -> ! {
         pac::NVIC::unmask(hal::pac::Interrupt::UART0_IRQ);
     }
 
+    // Track reverse messages for proper brake unlocking
+    let mut last_was_rev: bool = false;
+
     // Event loop
     loop {
         if let Some(event) = EVENT_QUEUE.dequeue() {
+            if last_was_rev && !is_of_var!(event, Command::EscRev) {
+                last_was_rev = false;
+            }
+
             // Dispatch command in a cs to avoid PPM timing from being messed up.
             cortex_m::interrupt::free(|_| match event {
                 Command::EscForward(perc) => {
@@ -143,7 +153,14 @@ fn main() -> ! {
                 }
                 Command::EscRev(perc) => {
                     led_pin.set_low().unwrap();
-                    xl5.set_reverse(perc as f32 / 100.0);
+                    // If last message was not reverse, clear brake lock.
+                    if !last_was_rev {
+                        xl5.set_reverse(perc as f32 / 100.0);
+                        last_was_rev = true;
+                    } else {
+                        xl5.set_raw_reverse(perc as f32 / 100.0);
+                    }
+
                     urt_tx.write_full_blocking(b"Set reverse\n");
                     led_pin.set_high().unwrap();
                 }

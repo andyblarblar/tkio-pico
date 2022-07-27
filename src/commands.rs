@@ -5,7 +5,7 @@
 use ascii::AsciiStr;
 
 /// Commands sent to us from the uart connection.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialOrd, PartialEq)]
 pub enum Command {
     /// Drive at percent power
     ///

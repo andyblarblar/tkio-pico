@@ -71,8 +71,12 @@ impl<'a> Esc for XL5<'a> {
     }
 
     /// Sets the motors to a percentage of forward power, in a range of \[0,1\].
-    fn set_forward(&mut self, percent_power: f32) {
+    fn set_forward(&mut self, mut percent_power: f32) {
         debug_assert!((0.0..=1.0).contains(&percent_power));
+
+        if percent_power > 0.40 { //TODO make this a parameter or something
+            percent_power = 0.40;
+        }
 
         let duty = (1.5 + (percent_power * 0.5)) / self.period.0 as f32 * self.max_duty as f32;
 
@@ -82,8 +86,12 @@ impl<'a> Esc for XL5<'a> {
     /// Sets the motors to a percentage of backwards power, in a range of \[0,1\].
     ///
     /// This function does not clear the brake lockout, so it may not actually cause the motors to reverse.
-    fn set_raw_reverse(&mut self, percent_power: f32) {
+    fn set_raw_reverse(&mut self, mut percent_power: f32) {
         debug_assert!((0.0..=1.0).contains(&percent_power));
+
+        if percent_power > 0.40 {
+            percent_power = 0.40;
+        }
 
         let duty = (1.5 - (percent_power * 0.5)) / self.period.0 as f32 * self.max_duty as f32;
 
