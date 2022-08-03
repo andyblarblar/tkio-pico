@@ -26,7 +26,7 @@ Commands:
 
 ## Electrical setup
 - Pin 8: PWM ESC output
-- Pin 10: Servo ESC output
+- Pin 10: PWM Servo output
 - Pin 0,1: default UART pins
 - Ground using any ground pin
 
